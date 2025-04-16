@@ -40,6 +40,7 @@ def remove_adjacents(nums):
 
 
 def main():
+    #Test cases for different functions 
     print("Donuts")
 
     print(donuts(4))
