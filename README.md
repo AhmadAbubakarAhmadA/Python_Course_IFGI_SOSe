@@ -1,2 +1,2 @@
-# A3_PIQAA
+# Python Course IFGI
 Python in QGIS and ArcGIS project and Excercise
