@@ -31,11 +31,11 @@ identity_district = pools.fields().indexFromName('district')
 for feature in pools.getFeatures():
     assigned = None
     for district in districts.getFeatures():
-        # switch contains test: check if district polygon contains the pool point
+        # checking if the pool is in the district
         if district.geometry().contains(feature.geometry()):
-            assigned = district['Name'] # or whatever your district-name field is
+            assigned = district['Name'] # get the district name
             break    # if the pool is in a district, stop checking
-    # now write the district value (unindented so it runs once per pool)
+    # now we write the district value to the pool feature
     if assigned:
         pools.changeAttributeValue(feature.id(), identity_district, assigned)
 
