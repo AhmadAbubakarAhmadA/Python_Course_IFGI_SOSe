@@ -63,7 +63,7 @@ with open(csv_path, 'r', newline='', encoding='utf-8') as csvfile:
         # Adding the feature to the list of features
         features.append(feature)
 
-# Using the data provider to add **all** features to the layer
+# Using the data provider to add features to the layer
 provider.addFeatures(features)
 # Updating the layer to reflect the changes
 layer.updateExtents()
