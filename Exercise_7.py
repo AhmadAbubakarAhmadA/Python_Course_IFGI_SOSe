@@ -10,7 +10,7 @@ from qgis.core import (
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.utils import iface
 from pathlib import Path
-import tempfile
+import tempfile, time
 from qgis.core import QgsFeature, QgsGeometry
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
@@ -59,6 +59,7 @@ class CreateCityDistictsProfile(QgsProcessingAlgorithm):
             "This algorithm generates a PDF summarizing objects and a map for the selected city district."
         )
 
+    # To override the abstract initAlgorithm so that the class can be instantiated
     def initAlgorithm(self, config=None):
         self.addParameter(
             QgsProcessingParameterEnum(
@@ -91,6 +92,7 @@ class CreateCityDistictsProfile(QgsProcessingAlgorithm):
             )
         )
 
+    # This function will read the parameters and execute the algorithm
     def processAlgorithm(self, parameters, context, feedback):
         district_index = self.parameterAsEnum(parameters, "DISTRICT", context)
         district_list = getDistrictNames()
@@ -119,6 +121,7 @@ class CreateCityDistictsProfile(QgsProcessingAlgorithm):
                 f"District '{district_name}' not found."
             )
 
+        parent_name = district_feature["P_District"]
         geometry = district_feature.geometry()
         area_m2 = geometry.area()
         area_km2 = round(area_m2 / 1_000_000, 2)
@@ -135,17 +138,21 @@ class CreateCityDistictsProfile(QgsProcessingAlgorithm):
                     count += 1
             return count
 
-
-        households_count = countpoints("Households", "AnyField")
-        parcels_count = countpoints("Parcels", "AnyField")
+        households_count = countpoints("House_Numbers", "AnyField")
+        parcels_count = countpoints("Muenster_Parcels", "AnyField")
         theme_layer_name = "Schools" if theme == "Schools" else "public_swimming_pools"
-        theme_count = countpoints(theme_layer_name, "Name")
+        theme_count_raw = countpoints(theme_layer_name, "Name")
+        if theme_count_raw == 0:
+            theme_count_text = f"No {theme.lower()} in this district"
+        else:
+            theme_count_text = f"{theme}: {theme_count_raw}"
 
         iface.mapCanvas().setExtent(geometry.boundingBox())
         iface.mapCanvas().refresh()
+        time.sleep(1)
         feedback.setProgress(50)
         image_path = str(Path(tempfile.gettempdir()) / f"{district_name}.png")
-        iface.mapCanvas().saveAsImage(image_path,)
+        iface.mapCanvas().saveAsImage(image_path)
 
         c = canvas.Canvas(output_file, pagesize=A4)
         width, height = A4
@@ -155,11 +162,12 @@ class CreateCityDistictsProfile(QgsProcessingAlgorithm):
 
         c.setFont("Helvetica", 12)
         text = (
+            f"Parent District: {parent_name}\n"
             f"District Name: {district_name}\n"
             f"Area: {area_km2} km²\n"
             f"Households: {households_count}\n"
             f"Parcels: {parcels_count}\n"
-            f"{theme}: {theme_count}"
+            f"{theme_count_text}"
         )
 
         y = height - 100
@@ -175,5 +183,6 @@ class CreateCityDistictsProfile(QgsProcessingAlgorithm):
 
         return {"OUTPUT": output_file}
 
+    # This function is used to create an instance of the algorithm
     def createInstance(self):
         return CreateCityDistictsProfile()
