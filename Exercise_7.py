@@ -1,3 +1,9 @@
+# exercise_7.py
+# # This script defines a custom QGIS processing algorithm to create a city district profile.
+# It generates a PDF report summarizing the district's information, including household and parcel counts,
+# and optionally includes information about schools or public swimming pools within the district.
+
+
 # importing necessary libraries
 from qgis.core import (
     QgsProject,
@@ -14,6 +20,8 @@ import tempfile, time
 from qgis.core import QgsFeature, QgsGeometry
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
+import matplotlib.pyplot as plt
+from collections import Counter
 
 # Helper function to get the list of districts from the project
 def getDistrictNames():
@@ -39,23 +47,23 @@ class CreateCityDistictsProfile(QgsProcessingAlgorithm):
     def name(self):
         return "create_city_districts_profile"
 
-# This function returns the unique identifier for the algorithm
+    # This function returns the unique identifier for the algorithm
     def displayName(self):
         return QCoreApplication.translate(
             "CreateCityDistrictsProfile",
             "Create City Districts Profile"
         )
-# This function returns the group name for the algorithm
+    # This function returns the group name for the algorithm
     def group(self):
         return QCoreApplication.translate(
             "CreateCityDistrictsProfile",
             "Districts Analysis"
         )
-# This function returns the unique identifier for the algorithm group
+    # This function returns the unique identifier for the algorithm group
     def groupId(self):
         return "districts_analysis"
 
-# This function returns a short help string for the algorithm
+    # This function returns a short help string for the algorithm
     def shortHelpString(self):
         return QCoreApplication.translate(
             "CreateCityDistrictsProfile",
@@ -136,7 +144,7 @@ class CreateCityDistictsProfile(QgsProcessingAlgorithm):
         area_m2 = geometry.area()
         area_km2 = round(area_m2 / 1_000_000, 2)
          
-         # Function to count points in a layer that fall within the district geometry
+        # Function to count points in a layer that fall within the district geometry
         def countpoints(layer_name, field_name):
             layer_list = QgsProject.instance().mapLayersByName(layer_name)
             if not layer_list:
@@ -161,6 +169,34 @@ class CreateCityDistictsProfile(QgsProcessingAlgorithm):
         else:
             theme_count_text = f"{theme}: {theme_count_raw}"
 
+        # Building a pie chart for the theme layer if it exists
+        type_counts = Counter()
+        layer_list = QgsProject.instance().mapLayersByName(theme_layer_name)
+        if layer_list:
+            tlayer = layer_list[0]
+            for pt in tlayer.getFeatures():
+                if geometry.contains(pt.geometry()):
+                    if theme == "Schools":
+                            t = pt["SchoolType"]
+                    else:  
+                            t = pt["Type"]
+                    type_counts[t] += 1
+        # If the theme layer exists, count the types and prepare data for the pie chart
+        pie_path = None
+        if type_counts:
+            labels = list(type_counts.keys())
+            sizes  = list(type_counts.values())
+            # Creating a pie chart using matplotlib
+            fig, ax = plt.subplots(figsize=(4, 4))
+            ax.pie(sizes, labels=labels, autopct="%1.1f%%", startangle=90)
+            ax.axis("equal")
+
+           # Saving the pie chart to a temporary file
+            pie_path = str(Path(tempfile.gettempdir()) / f"{district_name}_pie.png")
+            fig.savefig(pie_path, bbox_inches="tight")
+            plt.close(fig)
+        
+
         # Setting the map canvas to the district geometry and saving the map as an image
         iface.mapCanvas().setExtent(geometry.boundingBox())
         iface.mapCanvas().refresh()
@@ -174,7 +210,7 @@ class CreateCityDistictsProfile(QgsProcessingAlgorithm):
         c = canvas.Canvas(output_file, pagesize=A4)
         width, height = A4
     
-       # Setting the PDF title and adding district information
+        # Setting the PDF title and adding district information
         c.setFont("Helvetica", 16)
         c.drawString(100, height - 50, f"City District Profile: {district_name}")
 
@@ -194,10 +230,15 @@ class CreateCityDistictsProfile(QgsProcessingAlgorithm):
         for line in text.split("\n"):
             c.drawString(100, y, line)
             y -= 20
+
         # Adding the map image to the PDF
         c.drawImage(image_path, 50, 200, width=500, preserveAspectRatio=True, mask="auto")
 
-        # Adding a footer with the current date and time
+        #Embedding  the pie chart 
+        if pie_path:
+            c.drawImage(pie_path, 50, 50, width=200, preserveAspectRatio=True, mask="auto")
+        
+
         c.showPage()
         c.save()
         feedback.pushInfo("PDF report generated successfully.")
@@ -207,3 +248,4 @@ class CreateCityDistictsProfile(QgsProcessingAlgorithm):
     # This function is used to create an instance of the algorithm
     def createInstance(self):
         return CreateCityDistictsProfile()
+
