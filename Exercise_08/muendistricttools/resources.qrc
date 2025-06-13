@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/plugins/muendistricttools" >
+        <file>icon.png</file>
+    </qresource>
+</RCC>
